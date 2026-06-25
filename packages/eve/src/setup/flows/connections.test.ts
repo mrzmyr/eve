@@ -77,7 +77,7 @@ function flowDeps(overrides: Partial<ConnectionsFlowDeps> = {}): ConnectionsFlow
 }
 
 describe("runConnectionsFlow", () => {
-  it("adds a catalog connection and repaints the searchable task list", async () => {
+  it("adds a catalog connection and repaints the searchable list", async () => {
     const listAuthoredConnections = vi
       .fn(async () => [] as string[])
       .mockResolvedValueOnce([])
@@ -102,10 +102,10 @@ describe("runConnectionsFlow", () => {
     ).resolves.toEqual({ kind: "done", addedConnections: ["linear"] });
 
     expect(list.requests[0]).toMatchObject({
-      hintLayout: "inline",
       search: true,
       placeholder: "type to search MCP servers",
     });
+    expect(list.requests[0]).not.toHaveProperty("hintLayout");
     expect(list.paints[0]?.map((row) => row.value)).toEqual(["linear", "notion", "done"]);
     expect(list.paints[1]?.find((row) => row.value === "linear")).toMatchObject({
       completed: true,

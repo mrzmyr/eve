@@ -99,7 +99,6 @@ async function pickConnection(input: {
   const request: SingleSelectOptions<string> = {
     message: CONNECTIONS_PROMPT_MESSAGE,
     options,
-    hintLayout: "inline",
     search: true,
     placeholder: "type to search MCP servers",
   };
