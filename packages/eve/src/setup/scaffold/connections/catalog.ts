@@ -194,6 +194,17 @@ export function connectorServiceForEntry(
   return mcpServiceHost(entry.mcp?.url);
 }
 
+/** Concrete connector UID attempted before connector discovery or creation. */
+export function canonicalConnectorUidForEntry(entry: {
+  mcp?: McpEndpoint;
+  auth?: ConnectionAuthSpec;
+}): string | undefined {
+  if (entry.auth?.kind !== "connect") return undefined;
+  if (entry.auth.connector.includes("/")) return entry.auth.connector;
+  const service = entry.auth.service ?? mcpServiceHost(entry.mcp?.url);
+  return service === undefined ? undefined : `${service}/${entry.auth.connector}`;
+}
+
 /** Extracts the bare host from an MCP URL, or `undefined` when unparseable. */
 export function mcpServiceHost(url: string | undefined): string | undefined {
   if (!url) return undefined;

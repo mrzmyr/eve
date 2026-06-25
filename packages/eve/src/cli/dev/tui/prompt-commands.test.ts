@@ -50,6 +50,11 @@ describe("parsePromptCommand", () => {
       name: "channels",
       argument: "",
     });
+    expect(parsePromptCommand("/connect")).toEqual({
+      type: "extension",
+      name: "connect",
+      argument: "",
+    });
     expect(parsePromptCommand("/deploy")).toEqual({
       type: "extension",
       name: "deploy",
@@ -94,6 +99,7 @@ describe("promptCommandsFor", () => {
     const names = promptCommandsFor("local").map((command) => command.name);
     expect(names).toContain("model");
     expect(names).toContain("channels");
+    expect(names).toContain("connect");
     expect(names).toContain("deploy");
     expect(names).toContain("vc:install");
     expect(names).toContain("vc:login");
@@ -107,6 +113,7 @@ describe("promptCommandsFor", () => {
     expect(names).not.toContain("vc:auth");
     expect(names).not.toContain("model");
     expect(names).not.toContain("channels");
+    expect(names).not.toContain("connect");
     expect(names).not.toContain("deploy");
   });
 

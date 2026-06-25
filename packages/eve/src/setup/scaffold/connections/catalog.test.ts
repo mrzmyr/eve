@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  canonicalConnectorUidForEntry,
   catalogSlugs,
   CONNECTION_CATALOG,
   connectorServiceForEntry,
@@ -41,6 +42,7 @@ describe("catalog integrity", () => {
   test("every Connect entry resolves a `vercel connect create` service", () => {
     for (const entry of CONNECTION_CATALOG) {
       expect(connectorServiceForEntry(entry)).toBeTruthy();
+      expect(canonicalConnectorUidForEntry(entry)).toBeTruthy();
     }
   });
 });
@@ -68,6 +70,18 @@ describe("connectorServiceForEntry", () => {
     expect(
       connectorServiceForEntry({ auth: { kind: "bearer-env", envVar: "TOKEN" } }),
     ).toBeUndefined();
+  });
+});
+
+describe("canonicalConnectorUidForEntry", () => {
+  test("keeps catalog UIDs and derives custom UIDs", () => {
+    expect(canonicalConnectorUidForEntry(getCatalogEntry("notion")!)).toBe("mcp.notion.com/notion");
+    expect(
+      canonicalConnectorUidForEntry({
+        mcp: { url: "https://mcp.example.com/mcp" },
+        auth: { kind: "connect", connector: "custom" },
+      }),
+    ).toBe("mcp.example.com/custom");
   });
 });
 

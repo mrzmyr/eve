@@ -62,6 +62,10 @@ function fakeFlows(overrides: Partial<TuiSetupFlows> = {}): TuiSetupFlows {
       kind: "done",
       addedChannels: [],
     })),
+    runConnectionsFlow: vi.fn<TuiSetupFlows["runConnectionsFlow"]>(async () => ({
+      kind: "done",
+      addedConnections: [],
+    })),
     runDeployFlow: vi.fn<TuiSetupFlows["runDeployFlow"]>(async () => ({
       kind: "deployed",
       productionUrl: "https://my-agent.vercel.app",
@@ -71,7 +75,7 @@ function fakeFlows(overrides: Partial<TuiSetupFlows> = {}): TuiSetupFlows {
 }
 
 function run(input: {
-  command: "vc:install" | "vc:login" | "model" | "channels" | "deploy";
+  command: "vc:install" | "vc:login" | "model" | "channels" | "connect" | "deploy";
   flows: TuiSetupFlows;
   renderer?: TuiSetupCommandRenderer;
   initialModelStep?: "provider";
@@ -101,6 +105,7 @@ describe("runTuiSetupCommand", () => {
       "vc:login": "pulse",
       model: "pulse",
       channels: "pulse",
+      connect: "pulse",
       deploy: "spinner",
     });
   });
@@ -317,6 +322,53 @@ describe("runTuiSetupCommand", () => {
 
     expect(notice).toEqual({
       message: "No channels added.",
+      preserveFlowDiagnostics: true,
+    });
+  });
+
+  it("reports configured connections", async () => {
+    const flows = fakeFlows({
+      runConnectionsFlow: vi.fn<TuiSetupFlows["runConnectionsFlow"]>(async () => ({
+        kind: "done",
+        addedConnections: ["linear", "notion"],
+      })),
+    });
+
+    await expect(run({ command: "connect", flows })).resolves.toEqual({
+      message: "Connections added: linear, notion.",
+      preserveFlowDiagnostics: true,
+    });
+    expect(flows.runConnectionsFlow).toHaveBeenCalledWith(
+      expect.objectContaining({ appRoot: APP_ROOT }),
+    );
+  });
+
+  it("reports empty, cancelled, and partially failed connection flows", async () => {
+    await expect(run({ command: "connect", flows: fakeFlows() })).resolves.toEqual({
+      message: "No connections added.",
+      preserveFlowDiagnostics: true,
+    });
+    await expect(
+      run({
+        command: "connect",
+        flows: fakeFlows({
+          runConnectionsFlow: async () => ({ kind: "cancelled" }),
+        }),
+      }),
+    ).resolves.toEqual({ message: "/connect cancelled.", preserveFlowDiagnostics: true });
+    await expect(
+      run({
+        command: "connect",
+        flows: fakeFlows({
+          runConnectionsFlow: async () => ({
+            kind: "failed",
+            addedConnections: ["linear"],
+            message: "install failed",
+          }),
+        }),
+      }),
+    ).resolves.toEqual({
+      message: "Connection files changed, but /connect failed: install failed",
       preserveFlowDiagnostics: true,
     });
   });

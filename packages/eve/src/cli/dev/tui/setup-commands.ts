@@ -1,5 +1,6 @@
 import { HumanActionRequiredError } from "#setup/human-action.js";
 import { runChannelsFlow } from "#setup/flows/channels.js";
+import { runConnectionsFlow } from "#setup/flows/connections.js";
 import { runDeployFlow } from "#setup/flows/deploy.js";
 import {
   runInstallVercelCliFlow,
@@ -30,6 +31,7 @@ export const SETUP_FLOW_CONFIG = {
   "vc:login": { title: "Log in to Vercel", indicator: "pulse" },
   model: { title: "Configure the agent model", indicator: "pulse" },
   channels: { title: "Agent channels", indicator: "pulse" },
+  connect: { title: "Agent connections", indicator: "pulse" },
   deploy: { title: "Deploy to Vercel", indicator: "spinner" },
 } satisfies Record<TuiSetupCommand, { title: string; indicator: SetupFlowIndicator }>;
 
@@ -59,6 +61,7 @@ export interface TuiSetupFlows {
   runLoginFlow: typeof runLoginFlow;
   runModelFlow: typeof runModelFlow;
   runChannelsFlow: typeof runChannelsFlow;
+  runConnectionsFlow: typeof runConnectionsFlow;
   runDeployFlow: typeof runDeployFlow;
 }
 
@@ -158,6 +161,7 @@ async function executeSetupCommand(
     runLoginFlow,
     runModelFlow,
     runChannelsFlow,
+    runConnectionsFlow,
     runDeployFlow,
     ...input.flows,
   };
@@ -232,6 +236,26 @@ async function executeSetupCommand(
               message: `Channels added: ${result.addedChannels.join(", ")} — run /deploy to ship them.`,
               preserveFlowDiagnostics: true,
               effect: { kind: "channels-added" },
+            };
+        }
+      }
+      case "connect": {
+        const result = await flows.runConnectionsFlow({ appRoot, prompter, signal });
+        switch (result.kind) {
+          case "cancelled":
+            return { message: "/connect cancelled.", preserveFlowDiagnostics: true };
+          case "failed":
+            return {
+              message: `Connection files changed, but /connect failed: ${result.message}`,
+              preserveFlowDiagnostics: true,
+            };
+          case "done":
+            return {
+              message:
+                result.addedConnections.length === 0
+                  ? "No connections added."
+                  : `Connections added: ${result.addedConnections.join(", ")}.`,
+              preserveFlowDiagnostics: true,
             };
         }
       }

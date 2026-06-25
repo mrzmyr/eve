@@ -73,7 +73,11 @@ describe("renderFlowPanel", () => {
         lines: [],
         content: {
           kind: "status",
-          status: { text: "Loading teams…", indicator: { glyph: "⠼", color: "yellow" } },
+          status: {
+            kind: "progress",
+            text: "Loading teams…",
+            indicator: { glyph: "⠼", color: "yellow" },
+          },
         },
       },
       theme,
@@ -91,6 +95,7 @@ describe("renderFlowPanel", () => {
         content: {
           kind: "status",
           status: {
+            kind: "progress",
             text: "Checking the project…",
             indicator: { glyph: "▪", color: "green" },
           },
@@ -112,6 +117,7 @@ describe("renderFlowPanel", () => {
         content: {
           kind: "question",
           status: {
+            kind: "progress",
             text: "Creating a Slackbot through Vercel Connect…",
             indicator: { glyph: "▪", color: "green" },
           },

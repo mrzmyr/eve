@@ -150,16 +150,26 @@ export interface FlowPanelIndicator {
   color: "green" | "yellow";
 }
 
+/** One live flow status after its animation frame and visual intent are resolved. */
+export type FlowPanelStatus =
+  | { kind: "progress"; text: string; indicator: FlowPanelIndicator }
+  | {
+      kind: "external-action";
+      text: string;
+      emphasis: string;
+      indicator: FlowPanelIndicator;
+    };
+
 export type FlowPanelContent =
   | {
       kind: "question";
       rows: readonly string[];
       /** The install wait keeps its indicator above the concurrent actions. */
-      status?: { text: string; indicator: FlowPanelIndicator };
+      status?: FlowPanelStatus;
     }
   | {
       kind: "status";
-      status: { text: string; indicator: FlowPanelIndicator };
+      status: FlowPanelStatus;
       /** Latest child-process output shown transiently beneath the status. */
       preview?: string;
     }
@@ -223,6 +233,21 @@ function renderIndicator(indicator: FlowPanelIndicator, theme: Theme): string {
     : theme.colors.yellow(indicator.glyph);
 }
 
+function renderStatusText(status: FlowPanelStatus, theme: Theme): string {
+  if (status.kind === "progress") return theme.colors.dim(status.text);
+
+  const start = status.text.indexOf(status.emphasis);
+  if (start === -1) return theme.colors.dim(status.text);
+  const end = start + status.emphasis.length;
+  return `${theme.colors.dim(status.text.slice(0, start))}${theme.colors.yellow(
+    status.text.slice(start, end),
+  )}${theme.colors.dim(status.text.slice(end))}`;
+}
+
+function renderFlowPanelStatus(status: FlowPanelStatus, theme: Theme): string {
+  return `${renderIndicator(status.indicator, theme)} ${renderStatusText(status, theme)}`;
+}
+
 /**
  * Paints the bordered flow panel. Everything a running command produces lives
  * here — progress, questions, the status indicator — and the panel vanishes
@@ -250,17 +275,12 @@ export function renderFlowPanel(state: FlowPanelState, theme: Theme, width: numb
     case "question":
       // The install wait's question rides beneath its live status indicator.
       if (state.content.status !== undefined) {
-        rows.push(
-          `  ${renderIndicator(state.content.status.indicator, theme)} ${c.dim(state.content.status.text)}`,
-          "",
-        );
+        rows.push(`  ${renderFlowPanelStatus(state.content.status, theme)}`, "");
       }
       rows.push(...state.content.rows);
       break;
     case "status":
-      rows.push(
-        `  ${renderIndicator(state.content.status.indicator, theme)} ${c.dim(state.content.status.text)}`,
-      );
+      rows.push(`  ${renderFlowPanelStatus(state.content.status, theme)}`);
       if (state.content.preview !== undefined) {
         rows.push(`    ${c.dim(state.content.preview)}`);
       }

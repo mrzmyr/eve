@@ -1939,6 +1939,21 @@ describe("TerminalRenderer setup flow session", () => {
     }
   });
 
+  it("uses the attention color for an external-action pulse", () => {
+    const { screen, renderer } = makeRenderer();
+
+    renderer.setupFlow.begin("Agent connections", "pulse");
+    renderer.setupFlow.setStatus({
+      kind: "external-action",
+      text: "Waiting for you to complete setup in the browser…",
+      emphasis: "browser",
+    });
+
+    expect(screen.rawOutput()).toContain("\x1b[33m▪\x1b[39m");
+    expect(screen.rawOutput()).toContain("\x1b[33mbrowser\x1b[39m");
+    renderer.shutdown();
+  });
+
   it("uses an ASCII fallback for pulse setup flows", () => {
     const screen = new MockScreen({ columns: 80, rows: 30 });
     const input = new MockUserInput();

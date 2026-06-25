@@ -12,6 +12,9 @@ export type SetupEditableSelectResult =
 /** Animation shown while a setup flow is between questions. */
 export type SetupFlowIndicator = "spinner" | "pulse";
 
+/** Ephemeral setup status, with external user action distinct from background work. */
+export type SetupFlowStatus = string | { kind: "external-action"; text: string; emphasis: string };
+
 interface SetupSelectRequestBase {
   message: string;
   options: readonly SetupPanelOption[];
@@ -92,7 +95,7 @@ export interface SetupFlowRenderer {
    * whichever settles first wins.
    */
   readChoice(options: ChannelSetupChoiceOptions): ChannelSetupChoice;
-  setStatus(text: string | undefined): void;
+  setStatus(status: SetupFlowStatus | undefined): void;
   renderLine(text: string, tone: "info" | "success" | "warning" | "error"): void;
   renderOutput(text: string): void;
   /**

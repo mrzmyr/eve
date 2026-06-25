@@ -9,6 +9,7 @@ import type {
 } from "#setup/prompter.js";
 import { createSelectOptionCodec } from "#setup/cli/select-option-codec.js";
 import { searchActionQuery } from "#setup/cli/select-state.js";
+import type { SetupSpinnerIntent } from "#setup/cli/index.js";
 import { WizardCancelledError } from "#setup/step.js";
 
 import type { SetupFlowPrompterRenderer, SetupSelectRequest } from "./setup-flow.js";
@@ -205,8 +206,12 @@ export function createTuiPrompter(renderer: TuiPrompterRenderer): Prompter {
         renderer.renderLine(title, "info");
         for (const entry of lines) renderer.renderLine(`  ${entry}`, "info");
       },
-      spinner(message) {
-        renderer.setStatus(message);
+      spinner(message, intent?: SetupSpinnerIntent) {
+        renderer.setStatus(
+          intent?.kind === "external-action"
+            ? { kind: "external-action", text: message, emphasis: intent.emphasis }
+            : message,
+        );
         let stopped = false;
         return {
           stop() {

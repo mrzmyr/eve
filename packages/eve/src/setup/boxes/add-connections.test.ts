@@ -33,6 +33,7 @@ function makeBoxes(
     prompter: Prompter;
     headless?: boolean;
     deps?: AddConnectionsDeps;
+    beforeScaffold?: (projectRoot: string) => Promise<void>;
   },
 ): [ReturnType<typeof selectConnections>, ReturnType<typeof addConnections>] {
   const headless = options.headless ?? false;
@@ -42,7 +43,11 @@ function makeBoxes(
       asker: headless ? headlessAsker() : interactiveAsker(options.prompter),
       headless,
     }),
-    addConnections({ prompter: options.prompter, deps: options.deps }),
+    addConnections({
+      prompter: options.prompter,
+      deps: options.deps,
+      beforeScaffold: options.beforeScaffold,
+    }),
   ];
 }
 
@@ -59,11 +64,14 @@ function createDeps() {
       envKeysAdded: [],
       envKeysRequired: [],
     })),
+    listAuthoredConnections: vi.fn<AddConnectionsDeps["listAuthoredConnections"]>(async () => []),
     setupConnectionConnector: vi.fn<AddConnectionsDeps["setupConnectionConnector"]>(async () => ({
-      kind: "patched",
-      created: true,
+      kind: "existing",
       connectorUid: "oauth/connector-1",
     })),
+    cleanupCreatedConnectionConnector: vi.fn<
+      AddConnectionsDeps["cleanupCreatedConnectionConnector"]
+    >(async () => {}),
   };
 }
 
@@ -118,8 +126,14 @@ describe("selectConnections + addConnections boxes", () => {
       expect.objectContaining({
         slug: "linear",
         service: "mcp.linear.app",
-        connectionFilePath: "/tmp/project/agent/connections/linear.ts",
         projectRoot: "/tmp/project",
+      }),
+    );
+    expect(deps.ensureConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry: expect.objectContaining({
+          auth: expect.objectContaining({ connector: "oauth/connector-1" }),
+        }),
       }),
     );
   });
@@ -186,7 +200,7 @@ describe("selectConnections + addConnections boxes", () => {
         entry: expect.objectContaining({
           slug: "mycorp",
           mcp: { url: "https://mcp.mycorp.dev/sse" },
-          auth: { kind: "connect", connector: "mycorp" },
+          auth: { kind: "connect", connector: "oauth/connector-1" },
         }),
       }),
     );
@@ -272,6 +286,7 @@ describe("selectConnections + addConnections boxes", () => {
 
   test("skips provisioning when the connection file already exists", async () => {
     const deps = createDeps();
+    deps.listAuthoredConnections.mockResolvedValueOnce(["linear"]);
     deps.ensureConnection.mockResolvedValueOnce({
       slug: "linear",
       protocol: "mcp",
@@ -291,6 +306,75 @@ describe("selectConnections + addConnections boxes", () => {
     expect(deps.setupConnectionConnector).not.toHaveBeenCalled();
     expect(prompter.log.warning).toHaveBeenCalledWith(
       "Skipped linear (already exists; pass --force to overwrite).",
+    );
+  });
+
+  test("removes a connector created before a scaffold failure", async () => {
+    const deps = createDeps();
+    deps.setupConnectionConnector.mockResolvedValueOnce({
+      kind: "created",
+      connectorUid: "linear/new",
+      connectorId: "scl_new",
+    });
+    deps.ensureConnection.mockRejectedValueOnce(new Error("write failed"));
+    const boxes = makeBoxes({
+      prompter: createPrompter(),
+      presetConnections: ["linear"],
+      deps,
+    });
+
+    await expect(runInteractive(boxes, resolvedState(), silentSink, snapshot)).rejects.toThrow(
+      "write failed",
+    );
+    expect(deps.cleanupCreatedConnectionConnector).toHaveBeenCalledWith(
+      expect.objectContaining({ connectorId: "scl_new" }),
+    );
+  });
+
+  test("removes a created connector when pre-scaffold preparation fails", async () => {
+    const deps = createDeps();
+    deps.setupConnectionConnector.mockResolvedValueOnce({
+      kind: "created",
+      connectorUid: "linear/new",
+      connectorId: "scl_new",
+    });
+    const boxes = makeBoxes({
+      prompter: createPrompter(),
+      presetConnections: ["linear"],
+      deps,
+      beforeScaffold: async () => {
+        throw new Error("install failed");
+      },
+    });
+
+    await expect(runInteractive(boxes, resolvedState(), silentSink, snapshot)).rejects.toThrow(
+      "install failed",
+    );
+    expect(deps.ensureConnection).not.toHaveBeenCalled();
+    expect(deps.cleanupCreatedConnectionConnector).toHaveBeenCalledWith(
+      expect.objectContaining({ connectorId: "scl_new" }),
+    );
+  });
+
+  test("reports both scaffold and connector cleanup failures", async () => {
+    const deps = createDeps();
+    deps.setupConnectionConnector.mockResolvedValueOnce({
+      kind: "created",
+      connectorUid: "linear/new",
+      connectorId: "scl_new",
+    });
+    deps.ensureConnection.mockRejectedValueOnce(new Error("write failed"));
+    deps.cleanupCreatedConnectionConnector.mockRejectedValueOnce(
+      new Error("remove scl_new manually"),
+    );
+    const boxes = makeBoxes({
+      prompter: createPrompter(),
+      presetConnections: ["linear"],
+      deps,
+    });
+
+    await expect(runInteractive(boxes, resolvedState(), silentSink, snapshot)).rejects.toThrow(
+      "write failed remove scl_new manually",
     );
   });
 
@@ -332,7 +416,7 @@ describe("selectConnections + addConnections boxes", () => {
     const deps = createDeps();
     deps.setupConnectionConnector.mockImplementation(async (opts) => {
       await opts.linkProject?.();
-      return { kind: "patched", created: true, connectorUid: "oauth/linear-1" };
+      return { kind: "existing", connectorUid: "oauth/linear-1" };
     });
     const boxes = makeBoxes({
       prompter: createPrompter(),
@@ -350,7 +434,7 @@ describe("selectConnections + addConnections boxes", () => {
     let linkedProjectId: string | undefined;
     deps.setupConnectionConnector.mockImplementation(async (opts) => {
       linkedProjectId = await opts.linkProject?.();
-      return { kind: "patched", created: true, connectorUid: "oauth/linear-1" };
+      return { kind: "existing", connectorUid: "oauth/linear-1" };
     });
     const boxes = makeBoxes({
       prompter: createPrompter(),

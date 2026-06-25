@@ -30,12 +30,13 @@ Errors render compactly with docs links highlighted. A code bug escaping your ag
 
 ## Slash commands
 
-Each command echoes as an invocation line, asks through a bordered panel that takes the input area's place (one question at a time, separate from the chat transcript), and finishes with a one-line `⎿` result. Loading states stay on the ephemeral status line instead of piling into the transcript; model, channel, and the Vercel CLI commands (`/vc:install`, `/vc:login`) use the same green square pulse as the build phase, while `/deploy` keeps a spinner. Setup menus render the selected option with a filled arrow and an inverse label padded by one space on each side. Text prompts use a blinking block cursor over the character at the caret. The selected label is blue normally and yellow for warning rows.
+Each command echoes as an invocation line, asks through a bordered panel that takes the input area's place (one question at a time, separate from the chat transcript), and finishes with a one-line `⎿` result. Loading states stay on the ephemeral status line instead of piling into the transcript; model, channel, connection, and the Vercel CLI commands (`/vc:install`, `/vc:login`) use the same green square pulse as the build phase, while `/deploy` keeps a spinner. A connection setup waiting for browser action changes that pulse and the word "browser" to yellow. Setup menus render the selected option with a filled arrow and an inverse label padded by one space on each side. Text prompts use a blinking block cursor over the character at the caret. The selected label is blue normally and yellow for warning rows.
 
 | Command       | Does                                                                                                                                                         |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `/model`      | Opens a configure menu that loops until Done (or Esc). See [Configure the model and provider](#configure-the-model-and-provider).                            |
 | `/channels`   | Shows the agent's channel list and adds the one you pick. See [Add a channel](#add-a-channel).                                                               |
+| `/connect`    | Shows the Vercel Connect MCP catalog and configures the server you pick. See [Add a connection](#add-a-connection).                                          |
 | `/deploy`     | Ships the agent to Vercel production, linking the directory first when it is unlinked.                                                                       |
 | `/vc:install` | Installs the Vercel CLI. Available locally and on a remote session.                                                                                          |
 | `/vc:login`   | Logs in to Vercel locally. On a remote session, resolves the deployment's project, refreshes its OIDC token, and confirms any required Trusted Sources rule. |
@@ -44,7 +45,7 @@ Each command echoes as an invocation line, asks through a bordered panel that ta
 | `/exit`       | Quits the TUI.                                                                                                                                               |
 | `/help`       | Lists the commands available for the current local or remote session.                                                                                        |
 
-`/model`, `/channels`, and `/deploy` manage the project and are available only when `eve dev` runs the server locally, not when connected to a remote server with `--url`.
+`/model`, `/channels`, `/connect`, and `/deploy` manage the local agent or its linked project. They are available only when `eve dev` runs the server locally, not when connected to a remote server with `--url`.
 
 ### Configure the model and provider
 
@@ -57,6 +58,12 @@ The provider row demands attention (a bold yellow "Configure model access" with 
 ### Add a channel
 
 `/channels` shows the agent's channel list. Already-registered channels render as checked, focusable rows with an "Already installed" hint. Picking one adds it (including the Slack Connect provisioning), then installs the dependencies the scaffold added so the dev server can load the new channels right away. After each addition the list repaints with the channel checked, until Done (or Esc) leaves the flow.
+
+### Add a connection
+
+`/connect` shows a searchable list of MCP servers available through Vercel Connect. Already-authored connections remain checked. Vercel login stays in `/vc:login`, and team or project selection stays in `eve link`; unlinked or logged-out projects point to those commands instead of opening another selection flow.
+
+For a selected server, eve first tries to attach the provider's canonical connector. If that fails, choose an existing connector from a searchable list or create one with a specific name. A connector created by the current attempt is removed if attachment or connection-file patching fails. Successful setup writes `agent/connections/<name>.ts`, records the attached connector UID, and installs the new dependency so the dev server can load it.
 
 ## Keyboard shortcuts
 
